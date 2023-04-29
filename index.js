@@ -17,7 +17,7 @@ app.use((req, res, next) => {
   next()
 })
 
-app.get('/', async (req, res) => {
+app.get('/suggestion', async (req, res) => {
   try {
     const completion = await openai.createCompletion({
       model: 'text-davinci-003',
