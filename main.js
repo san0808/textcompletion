@@ -5,35 +5,34 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const app = express();
-console.log(process.env.OPENAI_API_KEY)
-// 1. Set up dependencies and environment
+
+// Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true });
 
+// Define image schema and model
 const imageSchema = new mongoose.Schema({
   prompt: { type: String, required: true },
   filename: { type: String, required: true }
 });
-
 const Image = mongoose.model('Image', imageSchema);
 
-// 2. Image generation function
+// Configure OpenAI API
+const { Configuration, OpenAIApi } = require("openai");
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
+// Generate image and save to MongoDB and file system
 async function generateImage(prompt) {
-  const response = await axios.post('https://api.openai.com/v1/images/generations/dall-e', {
-    model: 'image-alpha-001',
+  // Call OpenAI API to generate image
+  const response = await openai.createImage({
     prompt: prompt,
-    response_format: 'url',
-    size: '256x256',
-    num_images: 1,
-    size_variation: 0.5,
-    brightness: 0.5,
-    contrast: 1.0,
-    format: 'jpg'
-  }, {
-    headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-    }
+    n: 1,
+    size: "256x256",
   });
 
+  // Download the image and save to file system
   const filename = `image-${Date.now()}.jpg`;
   const path = `./public/images/${filename}`;
   const writer = fs.createWriteStream(path);
@@ -46,13 +45,14 @@ async function generateImage(prompt) {
     response.data.pipe(writer);
   });
 
+  // Save image metadata to MongoDB
   const image = new Image({ prompt, filename });
   await image.save();
 
   return filename;
 }
 
-// 3. Set up routes
+// Define Express routes
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -82,7 +82,7 @@ app.get('/images', async (req, res) => {
   res.json(images);
 });
 
-// 4. Start server
+// Start server
 app.listen(3000, () => {
   console.log('Server listening on port 3000');
 });
