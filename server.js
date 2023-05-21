@@ -95,9 +95,22 @@ app.get('/images/:id', async (req, res) => {
 });
 
 app.get('/images', async (req, res) => {
-  const images = await Image.find().select('-__v -imageData').exec();
-  res.json(images);
+  try {
+    const images = await Image.find().select('-__v').exec();
+    const encodedImages = images.map(image => ({
+      _id: image._id,
+      filename: image.prompt,
+      contentType: image.contentType,
+      imageData: image.imageData ? Buffer.from(image.imageData).toString('base64') : undefined
+    }));
+    res.json(encodedImages);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
+
+
 
 
 app.get('/suggestion', async (req, res) => {
